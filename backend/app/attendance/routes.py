@@ -1,15 +1,27 @@
 import base64
-import numpy as np
-import cv2
+from datetime import datetime
 
+import cv2
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
+from backend.app.attendance.reporting import (
+    get_student_daily_summaries,
+    get_student_percentage_summary
+)
+from backend.app.attendance.slot_utils import (
+    WEEKDAY_LABELS,
+    enrich_slot_with_live_status,
+    enrich_slots_with_live_status,
+    get_active_slot,
+    get_today_slots,
+    has_configured_slots
+)
 from backend.app.auth.dependencies import require_role
 from backend.app.database.connection import get_connection
-
 from backend.app.face_recognition.recognize_face import (
-    verify_blink_liveness,
-    mark_attendance
+    mark_attendance,
+    verify_blink_liveness
 )
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
@@ -30,96 +42,86 @@ def _decode_base64_frame(image):
     return frame
 
 
-# ---------------------------
-# Attendance Percentage
-# ---------------------------
+def _get_student_id_or_400(cursor, user_id):
+    cursor.execute(
+        "SELECT id FROM students WHERE user_id = %s",
+        (user_id,)
+    )
+    student_row = cursor.fetchone()
+
+    if not student_row:
+        raise HTTPException(status_code=400, detail="Student record not found")
+
+    return student_row[0]
+
+
 @router.get("/percentage")
 def attendance_percentage(current_user=Depends(require_role("student"))):
-
     user_id = int(current_user["sub"])
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT id FROM students WHERE user_id = %s",
-        (user_id,)
-    )
-    student_row = cursor.fetchone()
+    try:
+        student_id = _get_student_id_or_400(cursor, user_id)
+        summary = get_student_percentage_summary(cursor, student_id)
 
-    if not student_row:
+        return {
+            "present_days": summary["present_days"],
+            "scheduled_days": summary["scheduled_days"],
+            "total_working_days": summary["scheduled_days"],
+            "attendance_percentage": summary["attendance_percentage"]
+        }
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=400, detail="Student record not found")
-
-    student_id = student_row[0]
-
-    cursor.execute(
-        "SELECT COUNT(*) FROM attendance WHERE student_id = %s",
-        (student_id,)
-    )
-    present_days = cursor.fetchone()[0]
-
-    cursor.execute(
-        "SELECT COUNT(DISTINCT date) FROM attendance"
-    )
-    total_days = cursor.fetchone()[0]
-
-    percentage = 0
-    if total_days > 0:
-        percentage = round((present_days / total_days) * 100, 2)
-
-    cursor.close()
-    conn.close()
-
-    return {
-        "present_days": present_days,
-        "total_working_days": total_days,
-        "attendance_percentage": percentage
-    }
 
 
-# ---------------------------
-# Get My Attendance
-# ---------------------------
 @router.get("/my")
 def get_my_attendance(current_user=Depends(require_role("student"))):
-
     user_id = int(current_user["sub"])
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT id FROM students WHERE user_id = %s",
-        (user_id,)
-    )
-
-    student_row = cursor.fetchone()
-
-    if not student_row:
+    try:
+        student_id = _get_student_id_or_400(cursor, user_id)
+        return get_student_daily_summaries(cursor, student_id)
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=400, detail="Student record not found")
-
-    student_id = student_row[0]
-
-    cursor.execute(
-        "SELECT date, time FROM attendance WHERE student_id = %s ORDER BY date DESC",
-        (student_id,)
-    )
-
-    records = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    return [{"date": str(r[0]), "time": str(r[1])} for r in records]
 
 
-# ---------------------------
-# Manual Attendance (Button)
-# ---------------------------
+@router.get("/slot-status")
+def get_slot_status(current_user=Depends(require_role("student"))):
+    conn = get_connection()
+    cursor = conn.cursor()
+    current_dt = datetime.now()
+
+    try:
+        active_slot = enrich_slot_with_live_status(
+            cursor,
+            get_active_slot(cursor, current_dt),
+            current_dt
+        )
+        today_slots = enrich_slots_with_live_status(
+            cursor,
+            get_today_slots(cursor, current_dt),
+            current_dt
+        )
+
+        return {
+            "configured_slots": has_configured_slots(cursor),
+            "current_day": WEEKDAY_LABELS[current_dt.weekday()],
+            "active_slot": active_slot,
+            "today_slots": today_slots,
+            "attendance_open": (not active_slot) or bool(active_slot.get("attendance_open"))
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @router.post("/mark")
 def mark_attendance_manual(current_user=Depends(require_role("student"))):
     raise HTTPException(
@@ -128,9 +130,6 @@ def mark_attendance_manual(current_user=Depends(require_role("student"))):
     )
 
 
-# ---------------------------
-# Face Recognition Attendance
-# ---------------------------
 @router.post("/mark-face")
 def mark_face(
     data: dict,
@@ -159,14 +158,20 @@ def mark_face(
             detail="Recognized face does not match the logged-in student"
         )
 
-    success, attendance_error = mark_attendance(user_id)
+    success, attendance_error, slot_context = mark_attendance(user_id)
 
     if not success:
-        raise HTTPException(
-            status_code=400,
-            detail=attendance_error
+        raise HTTPException(status_code=400, detail=attendance_error)
+
+    message = "Face recognized. Attendance marked successfully."
+
+    if slot_context:
+        message = (
+            f"Face recognized. Attendance marked for {slot_context['title']} "
+            f"({slot_context['time_range_display']})."
         )
 
     return {
-        "message": "Face recognized. Attendance marked successfully."
+        "message": message,
+        "slot": slot_context
     }
