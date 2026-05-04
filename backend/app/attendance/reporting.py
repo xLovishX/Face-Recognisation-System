@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from backend.app.attendance.slot_utils import format_time_value, has_configured_slots
+from app.attendance.slot_utils import format_time_value, has_configured_slots
 
 
 def get_scheduled_dates(cursor, end_date=None):

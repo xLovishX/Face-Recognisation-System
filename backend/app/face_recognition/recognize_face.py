@@ -4,14 +4,14 @@ import json
 import numpy as np
 from datetime import datetime
 from threading import Lock
-from backend.app.attendance.slot_utils import (
+from app.attendance.slot_utils import (
     enrich_slot_with_live_status,
     format_time_range,
     get_active_slot,
     get_today_slots,
     has_configured_slots
 )
-from backend.app.database.connection import get_connection
+from app.database.connection import get_connection
 
 EYE_CLOSED_THRESHOLD = 0.21
 EYE_OPEN_THRESHOLD = 0.24

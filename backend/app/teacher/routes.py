@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.attendance.slot_utils import (
+from app.attendance.slot_utils import (
     WEEKDAY_LABELS,
     enrich_slot_with_live_status,
     enrich_slots_with_live_status,
@@ -10,8 +10,8 @@ from backend.app.attendance.slot_utils import (
     get_active_slot,
     get_today_slots
 )
-from backend.app.auth.dependencies import require_role
-from backend.app.database.connection import get_connection
+from app.auth.dependencies import require_role
+from app.database.connection import get_connection
 
 router = APIRouter(prefix="/teacher", tags=["Teacher"])
 

@@ -8,15 +8,15 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.attendance.reporting import (
+from app.attendance.reporting import (
     get_admin_stats_summary,
     get_student_percentage_summary
 )
-from backend.app.attendance.slot_utils import format_time_value, get_all_slots
-from backend.app.auth.dependencies import require_role
-from backend.app.auth.security import hash_password
-from backend.app.database.connection import get_connection
-from backend.app.face_recognition.recognize_face import (
+from app.attendance.slot_utils import format_time_value, get_all_slots
+from app.auth.dependencies import require_role
+from app.auth.security import hash_password
+from app.database.connection import get_connection
+from app.face_recognition.recognize_face import (
     clear_encodings_cache,
     extract_face_encoding_for_registration,
     extract_face_encoding_from_frames_for_registration

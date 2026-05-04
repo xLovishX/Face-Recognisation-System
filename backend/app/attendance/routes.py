@@ -5,11 +5,11 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.attendance.reporting import (
+from app.attendance.reporting import (
     get_student_daily_summaries,
     get_student_percentage_summary
 )
-from backend.app.attendance.slot_utils import (
+from app.attendance.slot_utils import (
     WEEKDAY_LABELS,
     enrich_slot_with_live_status,
     enrich_slots_with_live_status,
@@ -17,9 +17,9 @@ from backend.app.attendance.slot_utils import (
     get_today_slots,
     has_configured_slots
 )
-from backend.app.auth.dependencies import require_role
-from backend.app.database.connection import get_connection
-from backend.app.face_recognition.recognize_face import (
+from app.auth.dependencies import require_role
+from app.database.connection import get_connection
+from app.face_recognition.recognize_face import (
     mark_attendance,
     verify_blink_liveness
 )

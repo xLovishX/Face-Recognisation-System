@@ -3,9 +3,9 @@ import binascii
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.auth.dependencies import require_role
-from backend.app.auth.security import hash_password, verify_password
-from backend.app.database.connection import get_connection
+from app.auth.dependencies import require_role
+from app.auth.security import hash_password, verify_password
+from app.database.connection import get_connection
 
 MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024
 

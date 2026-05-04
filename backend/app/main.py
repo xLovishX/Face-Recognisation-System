@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.admin.routes import router as admin_router
-from backend.app.auth.routes import router as auth_router
-from backend.app.attendance.routes import router as attendance_router
-from backend.app.database.connection import create_tables
-from backend.app.profile.routes import router as profile_router
-from backend.app.teacher.routes import router as teacher_router
+
+from app.admin.routes import router as admin_router
+from app.auth.routes import router as auth_router
+from app.attendance.routes import router as attendance_router
+from app.database.connection import create_tables
+from app.profile.routes import router as profile_router
+from app.teacher.routes import router as teacher_router
 
 app = FastAPI(title="AttendX API")
 

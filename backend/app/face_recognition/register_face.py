@@ -2,7 +2,7 @@ import cv2
 import face_recognition
 import json
 import numpy as np
-from backend.app.database.connection import get_connection
+from app.database.connection import get_connection
 
 
 def register_face():
